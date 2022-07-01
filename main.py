@@ -155,7 +155,7 @@ checkpoint = ModelCheckpoint(checkpoint_name, monitor='loss', verbose=1, save_be
 callbacks_list = [checkpoint]
 
 # Fit the model :
-model_params = {'epochs': 10,
+model_params = {'epochs': 100,
                 'batch_size': 128,
                 'callbacks': callbacks_list,
                 'verbose': 1,

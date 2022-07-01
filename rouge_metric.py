@@ -4,7 +4,7 @@ from os import system
 system('cls')
 rouge = load_metric("rouge")
 print("Rouge metric loaded\n")
-result = open("results_textgenrnn/eminem_100epoch_2.txt", encoding='UTF-8').read()
+result = open("results/eminem.txt", encoding='UTF-8').read()
 all_references = []
 raw_result = result.lower()
 result_length = len(raw_result)
