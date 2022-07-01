@@ -145,9 +145,9 @@ if train_model == "1":
         dim_embeddings=model_cfg['dim_embeddings'],
         word_level=model_cfg['word_level'])
 else:
-    textgen = textgenrnn(name=model_name, weights_path="eminem_text_gen_rnn_model_weights.hdf5",
-                         vocab_path="eminem_text_gen_rnn_model_vocab.json",
-                         config_path="eminem_text_gen_rnn_model_config.json")
+    textgen = textgenrnn(name=model_name, weights_path="textgenrnn_weights/eminem_text_gen_rnn_model_weights.hdf5",
+                         vocab_path="textgenrnn_weights/eminem_text_gen_rnn_model_vocab.json",
+                         config_path="textgenrnn_weights/eminem_text_gen_rnn_model_config.json")
 
 print(textgen.model.summary())
 
