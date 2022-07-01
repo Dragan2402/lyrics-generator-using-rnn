@@ -121,32 +121,44 @@ if to_display_statistics == "1":
     print('Total Characters : ', n_chars)  # number of all the characters in lyricsText.txt
     print('Total Vocab : ', n_vocab)  # number of unique characters
 
+train_model = input("\nTrain model\n\t1-yes\n\tElse-no\n\t")
+
 model_name = "text_gen_rnn_model"
 
-textgen = textgenrnn(name=model_name)
-
-train_function = textgen.train_from_file
-
-train_function(
-    file_path=file_path,
-    new_model=True,
-    num_epochs=train_cfg['num_epochs'],
-    gen_epochs=train_cfg['gen_epochs'],
-    batch_size=train_cfg['batch_size'],
-    train_size=train_cfg['train_size'],
-    dropout=train_cfg['dropout'],
-    max_gen_length=train_cfg['max_gen_length'],
-    validation=train_cfg['validation'],
-    is_csv=train_cfg['is_csv'],
-    rnn_layers=model_cfg['rnn_layers'],
-    rnn_bidirectional=model_cfg['rnn_bidirectional'],
-    max_length=model_cfg['max_length'],
-    dim_embeddings=model_cfg['dim_embeddings'],
-    word_level=model_cfg['word_level'])
+if train_model == "1":
+    textgen = textgenrnn(name=model_name)
+    train_function = textgen.train_from_file
+    train_function(
+        file_path=file_path,
+        new_model=True,
+        num_epochs=train_cfg['num_epochs'],
+        gen_epochs=train_cfg['gen_epochs'],
+        batch_size=train_cfg['batch_size'],
+        train_size=train_cfg['train_size'],
+        dropout=train_cfg['dropout'],
+        max_gen_length=train_cfg['max_gen_length'],
+        validation=train_cfg['validation'],
+        is_csv=train_cfg['is_csv'],
+        rnn_layers=model_cfg['rnn_layers'],
+        rnn_bidirectional=model_cfg['rnn_bidirectional'],
+        max_length=model_cfg['max_length'],
+        dim_embeddings=model_cfg['dim_embeddings'],
+        word_level=model_cfg['word_level'])
+else:
+    textgen = textgenrnn(name=model_name, weights_path="text_gen_rnn_model_weights.hdf5",
+                         vocab_path="text_gen_rnn_model_vocab.json", config_path="text_gen_rnn_model_config.json")
 
 print(textgen.model.summary())
 
-generated_characters = 300
 
-textgen.generate_samples(300)
-textgen.generate_to_file('results_textgenrnn/lyrics.txt', 300)
+text = textgen.generate(20, temperature=1.0,return_as_list=True)
+filename = input("\nEnter file name to save the song:\n")
+filename = "results_textgenrnn/" + filename + ".txt"
+text_file = open(filename, "w")
+for line in text:
+    print(line)
+    text_file.write(line)
+    text_file.write("\n")
+text_file.close()
+print("\nDone")
+

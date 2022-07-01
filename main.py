@@ -167,7 +167,7 @@ model_params = {'epochs': 100,
                 'steps_per_epoch': None,
                 'validation_steps': None}
 
-train_model = input("Train model\n1-yes\nElse-no")
+train_model = input("\nTrain model\n\t1-yes\n\tElse-no\n\t")
 if train_model == "1":
     history = model.fit(X,
                         y,
@@ -201,14 +201,13 @@ else:
     model.load_weights(wights_file)
 
 model.compile(loss='categorical_crossentropy', optimizer='adam')
-input()
 start = np.random.randint(0, len(data_X) - 1)
 pattern = data_X[start]
-print('Seed : ')
+print('\nSeed : ')
 print("\"", ''.join([int_chars[value] for value in pattern]), "\"\n")
 
 # How many characters you want to generate
-generated_characters = 700
+generated_characters = int(input("\nNumber of characters:\n"))
 text = ''
 
 for i in range(generated_characters):
