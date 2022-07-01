@@ -4,7 +4,7 @@ from os import system
 system('cls')
 rouge = load_metric("rouge")
 print("Rouge metric loaded\n")
-result = open("results/taylor_2.txt", encoding='UTF-8').read()
+result = open("results_textgenrnn/eminem_100epoch_2.txt", encoding='UTF-8').read()
 all_references = []
 raw_result = result.lower()
 result_length = len(raw_result)
@@ -12,7 +12,7 @@ print("Result song loaded\n")
 print("Size of loaded song(char):" + str(result_length) + "\n")
 all_references.append(raw_result)
 
-raw_text_validate = open("data/lyricsText_validation.txt", encoding='UTF-8').read()
+raw_text_validate = open("data/eminem_validation.txt", encoding='UTF-8').read()
 print("Validation songs loaded\n")
 raw_text_validate = raw_text_validate.lower()
 # print("Chopping validation song into pieces\n")

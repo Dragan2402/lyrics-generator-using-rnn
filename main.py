@@ -89,8 +89,7 @@ if n == "1":
         for listitem in lyrics[training_number:]:
             filehandle.write('%s\n' % listitem)
 
-train_text_file_name = 'data/lyricsText.txt'
-validate_text_file_name = 'data/lyricsText_validation.txt'
+train_text_file_name = 'data/eminem_lyrics.txt'
 
 raw_text = open(train_text_file_name, encoding='UTF-8').read()
 raw_text = raw_text.lower()
@@ -151,12 +150,12 @@ model.compile(loss='categorical_crossentropy', optimizer='adam')
 model.summary()
 
 # Configure the checkpoint :
-checkpoint_name = 'weights/Weights-LSTM-improvement-{epoch:03d}-{loss:.5f}-bigger.hdf5'
+checkpoint_name = 'weightsEminem/Weights-LSTM-improvement-{epoch:03d}-{loss:.5f}-bigger.hdf5'
 checkpoint = ModelCheckpoint(checkpoint_name, monitor='loss', verbose=1, save_best_only=True, mode='min')
 callbacks_list = [checkpoint]
 
 # Fit the model :
-model_params = {'epochs': 100,
+model_params = {'epochs': 10,
                 'batch_size': 128,
                 'callbacks': callbacks_list,
                 'verbose': 1,
