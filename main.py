@@ -1,158 +1,233 @@
-import nltk
-import pandas as pd
-import warnings
-import matplotlib.pyplot as plt
+# Import the dependencies
+import os
+import sys
+
 import numpy as np
-import seaborn
-
-from keras.layers import LSTM, Dense
+import pandas as pd
+import matplotlib.pyplot as plt
+from keras.callbacks import ModelCheckpoint
+from keras.layers import Activation, Flatten, Dense, CuDNNLSTM
 from keras.models import Sequential
-from keras.optimizer_v2.adamax import Adamax
-from PIL import Image, ImageDraw, ImageFont
 from keras.utils import np_utils
-from wordcloud import WordCloud, STOPWORDS
 
-warnings.filterwarnings("ignore")
-data = pd.read_csv("data/TaylorSwift.csv")
+dataset = pd.read_csv('data/taylor_swift_lyrics.csv', encoding="latin1")
+
+os.system('cls')
+n = input("Generate text\n\t1-yes\n\tElse-no\n\t")
+
+
+def process_first_line(lyrics_p, song_id_p, song_name_p, row_p):
+    lyrics_p.append(row_p['lyric'] + '\n')
+    song_id_p.append(row_p['year'] * 100 + row_p['track_n'])
+    song_name_p.append(row_p['track_title'])
+    return lyrics_p, song_id_p, song_name_p
+
+
+if n == "1":
+
+    # define empty lists for the lyrics , songID , songName
+    lyrics = []
+    songID = []
+    songName = []
+
+    # songNumber indicates the song number in the dataset
+    songNumber = 1
+
+    # i indicates the song number
+    i = 0
+    isFirstLine = True
+
+    # Iterate through every lyrics line and join them together for each song independently
+    for index, row in dataset.iterrows():
+        if songNumber == row['track_n']:
+            if isFirstLine:
+                lyrics, songID, songName = process_first_line(lyrics, songID, songName, row)
+                isFirstLine = False
+            else:
+                # if we still in the same song , keep joining the lyrics lines
+                lyrics[i] += row['lyric'] + '\n'
+        # When it's done joining a song's lyrics lines , go to the next song :
+        else:
+            lyrics, songID, songName = process_first_line(lyrics, songID, songName, row)
+            songNumber = row['track_n']
+            i += 1
+
+    # define empty lists for the lyrics , songID , songName
+    lyrics = []
+    songID = []
+    songName = []
+
+    # songNumber indicates the song number in the dataset
+    songNumber = 1
+
+    # i indicates the song number
+    i = 0
+    isFirstLine = True
+
+    # Iterate through every lyrics line and join them together for each song independently
+    for index, row in dataset.iterrows():
+        if songNumber == row['track_n']:
+            if isFirstLine:
+                lyrics, songID, songName = process_first_line(lyrics, songID, songName, row)
+                isFirstLine = False
+            else:
+                # if we still in the same song , keep joining the lyrics lines
+                lyrics[i] += row['lyric'] + '\n'
+        # When it's done joining a song's lyrics lines , go to the next song :
+        else:
+            lyrics, songID, songName = process_first_line(lyrics, songID, songName, row)
+            songNumber = row['track_n']
+            i += 1
+    lyrics_data = pd.DataFrame({'songID': songID, 'songName': songName, 'lyrics': lyrics})
+    training_number = round(i * 0.8)
+    validation_number = i - training_number
+    # Save Lyrics in .txt file
+    with open('data/lyricsText.txt', 'w', encoding="utf-8") as filehandle:
+        for listitem in lyrics:
+            filehandle.write('%s\n' % listitem)
+    with open('data/lyricsText_validation.txt', 'w', encoding="utf-8") as filehandle:
+        for listitem in lyrics[training_number:]:
+            filehandle.write('%s\n' % listitem)
+
+train_text_file_name = 'data/lyricsText.txt'
+validate_text_file_name = 'data/lyricsText_validation.txt'
+
+raw_text = open(train_text_file_name, encoding='UTF-8').read()
+raw_text = raw_text.lower()
+
+chars = sorted(list(set(raw_text)))
+int_chars = dict((i, c) for i, c in enumerate(chars))
+chars_int = dict((i, c) for c, i in enumerate(chars))
+
+n_chars = len(raw_text)
+n_vocab = len(chars)
+
+to_display_statistics = input("Display data statistics\n\t1-yes\n\tElse-no\n\t")
+if to_display_statistics == "1":
+    print(dataset.head())
+    print(dataset.describe())
+    print('Total Characters : ', n_chars)  # number of all the characters in lyricsText.txt
+    print('Total Vocab : ', n_vocab)  # number of unique characters
+
+# process the dataset:
+seq_len = 100
+data_X = []
+data_y = []
+
+for i in range(0, n_chars - seq_len, 1):
+    # Input Sequeance(will be used as samples)
+    seq_in = raw_text[i:i + seq_len]
+    # Output sequence (will be used as target)
+    seq_out = raw_text[i + seq_len]
+    # Store samples in data_X
+    data_X.append([chars_int[char] for char in seq_in])
+    # Store targets in data_y
+    data_y.append(chars_int[seq_out])
+n_patterns = len(data_X)
+
+if to_display_statistics == "1":
+    print('Total Patterns : ', n_patterns)
+
+# Reshape X to be suitable to go into LSTM RNN :
+X = np.reshape(data_X, (n_patterns, seq_len, 1))
+# Normalizing input data :
+X = X / float(n_vocab)
+# One hot encode the output targets :
+y = np_utils.to_categorical(data_y)
+
+LSTM_layer_num = 4  # number of LSTM layers
+layer_size = [256, 256, 256, 256]  # number of nodes in each layer
 model = Sequential()
+model.add(CuDNNLSTM(layer_size[0], input_shape=(X.shape[1], X.shape[2]), return_sequences=True))
 
+for i in range(1, LSTM_layer_num):
+    model.add(CuDNNLSTM(layer_size[i], return_sequences=True))
 
-def data_display():
-    global data
-    data = data.iloc[:20, :]
-    print("Artists in the data:\n", data.Artist.value_counts())
-    print("Size of Dataset represented in total number of songs:", data.shape)
+model.add(Flatten())
+model.add(Dense(y.shape[1]))
+model.add(Activation('softmax'))
+model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-    data["No_of_Characters"] = data["Lyrics"].apply(len)
-    data["No_of_Words"] = data.apply(lambda row: nltk.word_tokenize(row["Lyrics"]), axis=1).apply(len)
-    data["No_of_Lines"] = data["Lyrics"].str.split('\n').apply(len)
-    print(data.describe())
-    stopwords = set(STOPWORDS)
-    wordcloud = WordCloud(stopwords=stopwords, background_color="#444160", colormap="Purples", max_words=800).generate(
-        " ".join(data["Lyrics"]))
-    plt.figure(figsize=(12, 12))
-    plt.imshow(wordcloud, interpolation="bilinear")
-    plt.show()
+model.summary()
 
+# Configure the checkpoint :
+checkpoint_name = 'weights/Weights-LSTM-improvement-{epoch:03d}-{loss:.5f}-bigger.hdf5'
+checkpoint = ModelCheckpoint(checkpoint_name, monitor='loss', verbose=1, save_best_only=True, mode='min')
+callbacks_list = [checkpoint]
 
-def generate_corpus():
-    corpus = ''
-    for list_item in data.Lyrics:
-        corpus += list_item
+# Fit the model :
+model_params = {'epochs': 100,
+                'batch_size': 128,
+                'callbacks': callbacks_list,
+                'verbose': 1,
+                'validation_split': 0.2,
+                'validation_data': None,
+                'shuffle': True,
+                'initial_epoch': 0,
+                'steps_per_epoch': None,
+                'validation_steps': None}
 
-    corpus = corpus.lower()  # converting all alphabets to lowecase
-    print("Number of unique characters before filtration:", len(set(corpus)))
-    print("The unique characters before filtration:", sorted(set(corpus)))
-    to_remove = ['{', '}', '~', '©', 'à', 'á', 'ã', 'ä', 'ç', 'è', 'é', 'ê', 'ë', 'í', 'ñ', 'ó', 'ö', 'ü', 'ŏ',
-                 'е', 'ا', 'س', 'ل', 'م', 'و', '\u2005', '\u200a', '\u200b', '–', '—', '‘', '’', '‚', '“', '”',
-                 '…', '\u205f', '\ufeff', '!', '&', '(', ')', '*', '-', '/', ]
-    for symbol in to_remove:
-        corpus = corpus.replace(symbol, " ")
-    print("Number of unique characters after filtration :", len(set(corpus)))
-    print("The unique characters after filtration :", sorted(set(corpus)))
-
-    symbol = sorted(list(set(corpus)))
-
-    l_corpus = len(corpus)  # length of corpus
-    l_symbol = len(symbol)  # length of total unique characters
-
-    # Building dictionary to access the vocabulary from indices and vice versa
-    mapping = dict((c, i) for i, c in enumerate(symbol))
-    reverse_mapping = dict((i, c) for i, c in enumerate(symbol))
-
-    print("Total number of characters:", l_corpus)
-    print("Number of unique characters:", l_symbol)
-
-    # Splitting the Corpus in equal length of strings and output target
-    length = 40
-    features = []
-    targets = []
-    for i in range(0, l_corpus - length, 1):
-        feature = corpus[i:i + length]
-        target = corpus[i + length]
-        features.append([mapping[j] for j in feature])
-        targets.append(mapping[target])
-
-    l_datapoints = len(targets)
-    print("Total number of sequences in the Corpus:", l_datapoints)
-
-    x = (np.reshape(features, (l_datapoints, length, 1))) / float(l_symbol)
-
-    # one hot encode the output variable
-    y = np_utils.to_categorical(targets)
-
-    return x, y, l_symbol, mapping, reverse_mapping,corpus
-
-
-def create_model(x, y):
-    # Adding layers
-    model.add(LSTM(256, input_shape=(x.shape[1], x.shape[2])))
-    model.add(Dense(y.shape[1], activation='softmax'))
-    # Compiling the model for training
-    opt = Adamax(learning_rate=0.01)
-    model.compile(loss='categorical_crossentropy', optimizer=opt)
-
-    # Model's Summary
-    model.summary()
-
-
-def train_model(x, y):
-    history = model.fit(x, y, batch_size=64, epochs=5)
+train_model = input("Train model\n1-yes\nElse-no")
+if train_model == "1":
+    history = model.fit(X,
+                        y,
+                        epochs=model_params['epochs'],
+                        batch_size=model_params['batch_size'],
+                        callbacks=model_params['callbacks'],
+                        verbose=model_params['verbose'],
+                        validation_split=model_params['validation_split'],
+                        validation_data=model_params['validation_data'],
+                        shuffle=model_params['shuffle'],
+                        initial_epoch=model_params['initial_epoch'],
+                        steps_per_epoch=model_params['steps_per_epoch'],
+                        validation_steps=model_params['validation_steps'])
     history_df = pd.DataFrame(history.history)
-    # Plotting the learnings
-
+    data = history_df["loss"]
+    epochs = []
+    epoch_num = 1
+    values = []
+    for single_data in data:
+        epochs.append(epoch_num)
+        values.append(single_data)
+        epoch_num += 1
     fig = plt.figure(figsize=(15, 4), facecolor="#B291B6")
-    fig.suptitle("Learning Plot of Model for Loss")
-    pl = seaborn.lineplot(data=history_df["loss"], color="#444160")
-    pl.set(ylabel="Training Loss")
-    pl.set(xlabel="Epochs")
+    plt.plot(epochs, values, label="loss plot")
 
+    plt.show()
+    print(data)
 
+else:
+    wights_file = 'weights/Weights-LSTM-improvement-099-0.01464-bigger.hdf5'  # weights file path
+    model.load_weights(wights_file)
 
+model.compile(loss='categorical_crossentropy', optimizer='adam')
+input()
+start = np.random.randint(0, len(data_X) - 1)
+pattern = data_X[start]
+print('Seed : ')
+print("\"", ''.join([int_chars[value] for value in pattern]), "\"\n")
 
+# How many characters you want to generate
+generated_characters = 700
+text = ''
 
+for i in range(generated_characters):
+    x = np.reshape(pattern, (1, len(pattern), 1))
+    x = x / float(n_vocab)
+    prediction = model.predict(x, verbose=0)
+    index = np.argmax(prediction)
+    result = int_chars[index]
+    # seq_in = [int_chars[value] for value in pattern]
+    sys.stdout.write(result)
+    text += result
+    pattern.append(index)
+    pattern = pattern[1:len(pattern)]
 
+filename = input("\nEnter file name to save the song:\n")
+filename = "results/" + filename + ".txt"
+text_file = open(filename, "w")
+text_file.write(text)
+text_file.close()
 
-# The function to generate text from model
-def lyrics_generator(starter, ch_count, l_symbol, mapping, reverse_mapping):  # ,temperature=1.0):
-    generated = ""
-    starter = starter
-    seed = [mapping[char] for char in starter]
-    generated += starter
-    # Generating new text of given length
-    for i in range(ch_count):
-        seed = [mapping[char] for char in starter]
-        x_pred = np.reshape(seed, (1, len(seed), 1))
-        x_pred = x_pred / float(l_symbol)
-        prediction = model.predict(x_pred, verbose=0)[0]
-        # Getting the index of the next most probable index
-        prediction = np.asarray(prediction).astype('float64')
-        prediction = np.log(prediction) / 1.0
-        exp_preds = np.exp(prediction)
-        prediction = exp_preds / np.sum(exp_preds)
-        probas = np.random.multinomial(1, prediction, 1)
-        index = np.argmax(prediction)
-        next_char = reverse_mapping[index]
-        # Generating new text
-        generated += next_char
-        starter = starter[1:] + next_char
-
-    return generated
-
-
-def main():
-    global data
-    print("Hello to the lyrics generator !!!\n\n")
-    data_display()
-    x, y, l_symbol, mapping, reverse_mapping ,corpus= generate_corpus()
-
-    create_model(x, y)
-    train_model(x, y)
-
-    song_2 = lyrics_generator("i'm a sunflower, a little funny and cute", 400, l_symbol, mapping, reverse_mapping)
-    for index in song_2:
-        print(reverse_mapping[int(index)])
-
-
-if __name__ == "__main__":
-    main()
+print('\nDone')
+input()
