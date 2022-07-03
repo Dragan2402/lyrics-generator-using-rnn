@@ -2,6 +2,7 @@ from textgenrnn import textgenrnn
 import os
 import pandas as pd
 
+# MODEL CONFIGURATION
 model_cfg = {
     'rnn_layers': 12,
     'rnn_bidirectional': True,
@@ -24,11 +25,11 @@ train_cfg = {
 }
 
 dataset = pd.read_csv('data/taylor_swift_lyrics.csv', encoding="latin1")
-
 os.system('cls')
 n = input("Generate text\n\t1-yes\n\tElse-no\n\t")
 
 
+# PROCESS SONGS FROM CSV
 def process_first_line(lyrics_p, song_id_p, song_name_p, row_p):
     lyrics_p.append(row_p['lyric'] + '\n')
     song_id_p.append(row_p['year'] * 100 + row_p['track_n'])
@@ -37,56 +38,36 @@ def process_first_line(lyrics_p, song_id_p, song_name_p, row_p):
 
 
 if n == "1":
-
-    # define empty lists for the lyrics , songID , songName
     lyrics = []
     songID = []
     songName = []
-
-    # songNumber indicates the song number in the dataset
     songNumber = 1
-
-    # i indicates the song number
     i = 0
     isFirstLine = True
-
-    # Iterate through every lyrics line and join them together for each song independently
     for index, row in dataset.iterrows():
         if songNumber == row['track_n']:
             if isFirstLine:
                 lyrics, songID, songName = process_first_line(lyrics, songID, songName, row)
                 isFirstLine = False
             else:
-                # if we still in the same song , keep joining the lyrics lines
                 lyrics[i] += row['lyric'] + '\n'
-        # When it's done joining a song's lyrics lines , go to the next song :
         else:
             lyrics, songID, songName = process_first_line(lyrics, songID, songName, row)
             songNumber = row['track_n']
             i += 1
-
-    # define empty lists for the lyrics , songID , songName
     lyrics = []
     songID = []
     songName = []
-
-    # songNumber indicates the song number in the dataset
     songNumber = 1
-
-    # i indicates the song number
     i = 0
     isFirstLine = True
-
-    # Iterate through every lyrics line and join them together for each song independently
     for index, row in dataset.iterrows():
         if songNumber == row['track_n']:
             if isFirstLine:
                 lyrics, songID, songName = process_first_line(lyrics, songID, songName, row)
                 isFirstLine = False
             else:
-                # if we still in the same song , keep joining the lyrics lines
                 lyrics[i] += row['lyric'] + '\n'
-        # When it's done joining a song's lyrics lines , go to the next song :
         else:
             lyrics, songID, songName = process_first_line(lyrics, songID, songName, row)
             songNumber = row['track_n']
@@ -94,8 +75,6 @@ if n == "1":
     lyrics_data = pd.DataFrame({'songID': songID, 'songName': songName, 'lyrics': lyrics})
     training_number = round(i * 0.8)
     validation_number = i - training_number
-
-    # Save Lyrics in .txt file
     with open('data/lyricsText.txt', 'w', encoding="utf-8") as filehandle:
         for listitem in lyrics:
             filehandle.write('%s\n' % listitem)
@@ -103,7 +82,8 @@ if n == "1":
         for listitem in lyrics[training_number:]:
             filehandle.write('%s\n' % listitem)
 
-file_path = "data/eminem_lyrics.txt"
+# LOAD SONGS
+file_path = "data/lyricsText.txt"
 raw_text = open(file_path, encoding='UTF-8').read()
 raw_text = raw_text.lower()
 
@@ -123,8 +103,8 @@ if to_display_statistics == "1":
 
 train_model = input("\nTrain model\n\t1-yes\n\tElse-no\n\t")
 
-model_name = "eminem_text_gen_rnn_model"
-
+model_name = "text_gen_rnn_model"
+# TRAIN MODEL
 if train_model == "1":
     textgen = textgenrnn(name=model_name)
     train_function = textgen.train_from_file
@@ -145,12 +125,13 @@ if train_model == "1":
         dim_embeddings=model_cfg['dim_embeddings'],
         word_level=model_cfg['word_level'])
 else:
-    textgen = textgenrnn(name=model_name, weights_path="textgenrnn_weights/eminem_text_gen_rnn_model_weights.hdf5",
-                         vocab_path="textgenrnn_weights/eminem_text_gen_rnn_model_vocab.json",
-                         config_path="textgenrnn_weights/eminem_text_gen_rnn_model_config.json")
+    # LOAD WEIGHTS
+    textgen = textgenrnn(name=model_name, weights_path="textgenrnn_weights/text_gen_rnn_model_weights.hdf5",
+                         vocab_path="textgenrnn_weights/text_gen_rnn_model_vocab.json",
+                         config_path="textgenrnn_weights/text_gen_rnn_model_config.json")
 
 print(textgen.model.summary())
-
+# SAVING AND PRINTING
 text = textgen.generate(20, temperature=1.0, return_as_list=True)
 filename = input("\nEnter file name to save the song:\n")
 filename = "results_textgenrnn/" + filename + ".txt"
